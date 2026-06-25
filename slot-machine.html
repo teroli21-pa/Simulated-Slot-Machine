@@ -1,0 +1,1301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Emoji Slot Machine Simulator</title>
+  <style>
+    :root {
+      --bg: #10111a;
+      --panel: #1b1d2b;
+      --panel-2: #26293d;
+      --text: #f5f7ff;
+      --muted: #b9bed6;
+      --accent: #ffd166;
+      --good: #57cc99;
+      --bad: #ff6b6b;
+      --border: rgba(255, 255, 255, 0.14);
+      --shadow: 0 24px 70px rgba(0, 0, 0, 0.35);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Arial, Helvetica, sans-serif;
+      color: var(--text);
+      overflow-x: hidden;
+      background:
+        radial-gradient(circle at top left, rgba(255, 209, 102, 0.20), transparent 28rem),
+        radial-gradient(circle at bottom right, rgba(87, 204, 153, 0.13), transparent 26rem),
+        var(--bg);
+    }
+
+    .app {
+      width: min(1200px, calc(100% - 28px));
+      margin: 0 auto;
+      padding: clamp(14px, 3vw, 24px) 0 48px;
+    }
+
+    @media (max-width: 480px) {
+      .app {
+        width: calc(100% - 16px);
+      }
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: clamp(2rem, 4vw, 4rem);
+      letter-spacing: -0.04em;
+    }
+
+    .subtitle {
+      margin: 0 auto;
+      max-width: 760px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .notice {
+      display: inline-block;
+      margin-top: 12px;
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.07);
+      color: var(--accent);
+      font-weight: 700;
+      font-size: 0.95rem;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1.25fr 0.75fr;
+      gap: 18px;
+      align-items: start;
+    }
+
+    @media (max-width: 900px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .card {
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.03));
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .card-body {
+      padding: 18px;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(125px, 1fr));
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .stat {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 13px;
+    }
+
+    .stat span {
+      display: block;
+      color: var(--muted);
+      font-size: 0.82rem;
+      margin-bottom: 6px;
+    }
+
+    .stat strong {
+      font-size: 1.25rem;
+    }
+
+    .slot-frame {
+      padding: clamp(10px, 2.4vw, 18px);
+      border-radius: 22px;
+      background:
+        linear-gradient(135deg, rgba(255, 209, 102, 0.18), transparent 50%),
+        var(--panel);
+      border: 1px solid var(--border);
+      overflow: hidden;
+    }
+
+    .reels {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: clamp(8px, 1.8vw, 12px);
+      width: 100%;
+      max-width: 100%;
+    }
+
+    .reels.mode-3 {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .reels.mode-6 {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .reels.mode-9 {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .reel {
+      min-width: 0;
+      min-height: clamp(58px, 14vw, 92px);
+      display: grid;
+      place-items: center;
+      border-radius: clamp(12px, 2vw, 18px);
+      background: #f7f2df;
+      color: #111;
+      font-size: var(--reel-font-size, clamp(1.75rem, 8vw, 4.1rem));
+      line-height: 1;
+      overflow: hidden;
+      box-shadow:
+        inset 0 7px 0 rgba(255, 255, 255, 0.7),
+        inset 0 -8px 0 rgba(0, 0, 0, 0.12),
+        0 10px 20px rgba(0, 0, 0, 0.25);
+      transition: transform 0.18s ease, filter 0.18s ease;
+      user-select: none;
+    }
+
+    .reel.spin {
+      animation: bounce 0.45s ease;
+      filter: blur(1px);
+    }
+
+    @keyframes bounce {
+      0% { transform: translateY(0) rotate(0deg); }
+      35% { transform: translateY(-12px) rotate(3deg); }
+      70% { transform: translateY(5px) rotate(-2deg); }
+      100% { transform: translateY(0) rotate(0deg); }
+    }
+
+    .message {
+      margin: 16px 0;
+      min-height: 56px;
+      padding: 14px 16px;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--border);
+      line-height: 1.45;
+    }
+
+    .message.win {
+      border-color: rgba(87, 204, 153, 0.5);
+      color: var(--good);
+    }
+
+    .message.lose {
+      border-color: rgba(255, 107, 107, 0.45);
+      color: var(--bad);
+    }
+
+    .controls,
+    .cheats,
+    .settings-grid {
+      display: grid;
+      gap: 12px;
+    }
+
+    .controls {
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    }
+
+    .buy-panel {
+      display: grid;
+      grid-template-columns: minmax(150px, 1fr) minmax(150px, auto);
+      gap: 12px;
+      align-items: end;
+      margin-top: 12px;
+    }
+
+    .buy-panel button {
+      min-height: 47px;
+    }
+
+    @media (max-width: 560px) {
+      .buy-panel {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    label {
+      display: grid;
+      gap: 7px;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    input,
+    select,
+    button,
+    textarea {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--panel-2);
+      color: var(--text);
+      padding: 11px 12px;
+      font-size: 1rem;
+      outline: none;
+    }
+
+    input:focus,
+    select:focus,
+    textarea:focus {
+      border-color: var(--accent);
+    }
+
+    button {
+      cursor: pointer;
+      font-weight: 800;
+      transition: transform 0.12s ease, opacity 0.12s ease, background 0.12s ease;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      opacity: 0.95;
+    }
+
+    button:active {
+      transform: translateY(1px);
+    }
+
+    button.primary {
+      background: linear-gradient(180deg, #ffe08a, #ffbd4a);
+      color: #231600;
+      border-color: rgba(255, 209, 102, 0.8);
+      font-size: 1.1rem;
+    }
+
+    button.good {
+      background: rgba(87, 204, 153, 0.22);
+      border-color: rgba(87, 204, 153, 0.55);
+    }
+
+    button.bad {
+      background: rgba(255, 107, 107, 0.2);
+      border-color: rgba(255, 107, 107, 0.55);
+    }
+
+    button.ghost {
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .section-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      margin: 0 0 12px;
+    }
+
+    .section-title h2 {
+      margin: 0;
+      font-size: 1.25rem;
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: 0.88rem;
+      line-height: 1.45;
+    }
+
+    .paytable {
+      width: 100%;
+      border-collapse: collapse;
+      overflow: hidden;
+      border-radius: 14px;
+      font-size: 0.94rem;
+    }
+
+    .paytable th,
+    .paytable td {
+      padding: 10px;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+    }
+
+    .paytable th {
+      color: var(--accent);
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .paytable tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .odds-list {
+      display: grid;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .odds-row {
+      display: grid;
+      grid-template-columns: 52px 1fr 92px;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 34px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--border);
+    }
+
+    .row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .row > button {
+      flex: 1 1 130px;
+    }
+
+    .small {
+      font-size: 0.82rem;
+      color: var(--muted);
+    }
+
+    .divider {
+      height: 1px;
+      background: var(--border);
+      margin: 16px 0;
+    }
+
+    .history {
+      display: grid;
+      gap: 8px;
+      max-height: 280px;
+      overflow: auto;
+      padding-right: 4px;
+    }
+
+    .history-item {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 9px 10px;
+      font-size: 0.9rem;
+      line-height: 1.35;
+    }
+
+    .win-text {
+      color: var(--good);
+      font-weight: 800;
+    }
+
+    .lose-text {
+      color: var(--bad);
+      font-weight: 800;
+    }
+
+    .footer-note {
+      margin-top: 16px;
+      color: var(--muted);
+      text-align: center;
+      font-size: 0.85rem;
+    }
+
+    .two {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 10px;
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header>
+      <h1>🎰 Emoji Slot Machine</h1>
+      <p class="subtitle">
+        A browser-only simulation. No real money, no payments, no online betting. Your coins are fake and saved only in this browser.
+      </p>
+      <div class="notice">Simulation only · Buy spins with fake money · Built-in cheats</div>
+    </header>
+
+    <section class="grid">
+      <div class="card">
+        <div class="card-body">
+          <div class="stats">
+            <div class="stat">
+              <span>Money</span>
+              <strong id="money">$1,000</strong>
+            </div>
+            <div class="stat">
+              <span>Bet</span>
+              <strong id="betDisplay">$25</strong>
+            </div>
+            <div class="stat">
+              <span>Mode</span>
+              <strong id="modeDisplay">3 icons</strong>
+            </div>
+            <div class="stat">
+              <span>Spin Credits</span>
+              <strong id="spinCredits">0</strong>
+            </div>
+            <div class="stat">
+              <span>Total Spins</span>
+              <strong id="spins">0</strong>
+            </div>
+          </div>
+
+          <div class="slot-frame">
+            <div id="reels" class="reels"></div>
+          </div>
+
+          <div id="message" class="message">
+            Buy spin credits with fake money, pick a bet, set any icon count, then spin. 🍀
+          </div>
+
+          <div class="controls">
+            <label>
+              Bet amount
+              <input id="betInput" type="number" min="1" step="1" value="25" />
+            </label>
+
+            <label>
+              Mode preset
+              <select id="modePreset">
+                <option value="1">1 icon</option>
+                <option value="2">2 icons</option>
+                <option value="3">3 icons</option>
+                <option value="6">6 icons</option>
+                <option value="9">9 icons</option>
+                <option value="custom">Custom</option>
+              </select>
+            </label>
+
+            <label>
+              Custom icon count
+              <input id="modeInput" type="number" min="1" step="1" value="3" />
+            </label>
+
+            <button id="setModeBtn" class="ghost" type="button" style="align-self: end;">Set Icons</button>
+
+            <label>
+              Quick bet
+              <select id="quickBet">
+                <option value="">Choose</option>
+                <option value="10">$10</option>
+                <option value="25">$25</option>
+                <option value="50">$50</option>
+                <option value="100">$100</option>
+                <option value="250">$250</option>
+                <option value="500">$500</option>
+              </select>
+            </label>
+
+            <label>
+              Auto-save
+              <select id="autosave">
+                <option value="on">On</option>
+                <option value="off">Off</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="buy-panel">
+            <label>
+              Buy spin credits
+              <input id="buySpinsInput" type="number" min="1" step="1" value="10" />
+            </label>
+            <button id="buySpinsBtn" class="good">Buy Spins</button>
+          </div>
+          <p class="hint" id="spinShopHint">Each spin credit costs $10 fake money.</p>
+
+          <div style="margin-top: 12px;" class="row">
+            <button id="spinBtn" class="primary">SPIN 🎲</button>
+            <button id="spin10Btn" class="ghost">Spin 10x</button>
+            <button id="saveBtn" class="good">Save 💾</button>
+            <button id="resetBtn" class="bad">Reset 🔄</button>
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="two">
+            <div>
+              <div class="section-title">
+                <h2>🧪 Cheats</h2>
+              </div>
+              <div class="cheats">
+                <button id="infiniteMoneyBtn" class="good">Toggle Infinite Money</button>
+                <label>
+                  Edit money value
+                  <input id="moneyInput" type="number" min="0" step="1" value="1000" />
+                </label>
+                <button id="setMoneyBtn" class="ghost">Set Money</button>
+                <button id="addMoneyBtn" class="ghost">Add $1,000 Money</button>
+
+                <div class="divider" style="margin: 4px 0;"></div>
+
+                <button id="infiniteSpinsBtn" class="good">Toggle Infinite Spins</button>
+                <label>
+                  Edit spin credits
+                  <input id="spinCreditsInput" type="number" min="0" step="1" value="0" />
+                </label>
+                <button id="setSpinCreditsBtn" class="ghost">Set Spin Credits</button>
+                <button id="addSpinCreditsBtn" class="ghost">Add 100 Spin Credits</button>
+              </div>
+              <p class="hint" id="cheatStatus">Infinite money: OFF<br>Infinite spins: OFF</p>
+            </div>
+
+            <div>
+              <div class="section-title">
+                <h2>📊 Current Chances</h2>
+              </div>
+              <div id="chanceSummary" class="hint"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <aside class="card">
+        <div class="card-body">
+          <div class="section-title">
+            <h2>🏆 Paytable</h2>
+          </div>
+          <table class="paytable">
+            <thead>
+              <tr>
+                <th>Result</th>
+                <th>Payout</th>
+              </tr>
+            </thead>
+            <tbody id="paytableBody"></tbody>
+          </table>
+
+          <div class="divider"></div>
+
+          <div class="section-title">
+            <h2>🎛️ Change Chances</h2>
+          </div>
+          <p class="hint">
+            Higher weight means that emoji appears more often. This changes the odds. Set all weights equal for fair symbol frequency.
+          </p>
+          <div id="oddsEditor" class="odds-list"></div>
+          <div class="row" style="margin-top: 12px;">
+            <button id="applyOddsBtn" class="good">Apply Chances</button>
+            <button id="defaultOddsBtn" class="ghost">Default Chances</button>
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="section-title">
+            <h2>🧾 Spin History</h2>
+            <button id="clearHistoryBtn" class="ghost" style="max-width: 110px;">Clear</button>
+          </div>
+          <div id="history" class="history"></div>
+        </div>
+      </aside>
+    </section>
+
+    <p class="footer-note">
+      Tip: Buy spin credits first. You can set any positive icon count. 1 icon always matches, while larger custom modes are much harder but pay more.
+    </p>
+  </main>
+
+  <script>
+    const STORAGE_KEY = "emojiSlotMachineSaveV3";
+    const SPIN_PRICE = 10;
+
+    const defaultState = {
+      money: 1000,
+      bet: 25,
+      mode: 3,
+      spinCredits: 0,
+      spins: 0,
+      wins: 0,
+      losses: 0,
+      infiniteMoney: false,
+      infiniteSpins: false,
+      autosave: true,
+      history: [],
+      weights: {
+        "🍒": 35,
+        "🍋": 30,
+        "🍉": 24,
+        "🔔": 16,
+        "⭐": 10,
+        "💎": 6,
+        "7️⃣": 3
+      }
+    };
+
+    const payouts = {
+      "🍒": 4,
+      "🍋": 5,
+      "🍉": 7,
+      "🔔": 12,
+      "⭐": 20,
+      "💎": 40,
+      "7️⃣": 100
+    };
+
+    let state = loadGame();
+    state.mode = clampMode(state.mode);
+
+    const els = {
+      money: document.getElementById("money"),
+      betDisplay: document.getElementById("betDisplay"),
+      modeDisplay: document.getElementById("modeDisplay"),
+      spinCredits: document.getElementById("spinCredits"),
+      spins: document.getElementById("spins"),
+      reels: document.getElementById("reels"),
+      message: document.getElementById("message"),
+      betInput: document.getElementById("betInput"),
+      modePreset: document.getElementById("modePreset"),
+      modeInput: document.getElementById("modeInput"),
+      setModeBtn: document.getElementById("setModeBtn"),
+      quickBet: document.getElementById("quickBet"),
+      autosave: document.getElementById("autosave"),
+      buySpinsInput: document.getElementById("buySpinsInput"),
+      buySpinsBtn: document.getElementById("buySpinsBtn"),
+      spinShopHint: document.getElementById("spinShopHint"),
+      spinBtn: document.getElementById("spinBtn"),
+      spin10Btn: document.getElementById("spin10Btn"),
+      saveBtn: document.getElementById("saveBtn"),
+      resetBtn: document.getElementById("resetBtn"),
+      infiniteMoneyBtn: document.getElementById("infiniteMoneyBtn"),
+      moneyInput: document.getElementById("moneyInput"),
+      setMoneyBtn: document.getElementById("setMoneyBtn"),
+      addMoneyBtn: document.getElementById("addMoneyBtn"),
+      infiniteSpinsBtn: document.getElementById("infiniteSpinsBtn"),
+      spinCreditsInput: document.getElementById("spinCreditsInput"),
+      setSpinCreditsBtn: document.getElementById("setSpinCreditsBtn"),
+      addSpinCreditsBtn: document.getElementById("addSpinCreditsBtn"),
+      cheatStatus: document.getElementById("cheatStatus"),
+      paytableBody: document.getElementById("paytableBody"),
+      oddsEditor: document.getElementById("oddsEditor"),
+      applyOddsBtn: document.getElementById("applyOddsBtn"),
+      defaultOddsBtn: document.getElementById("defaultOddsBtn"),
+      chanceSummary: document.getElementById("chanceSummary"),
+      history: document.getElementById("history"),
+      clearHistoryBtn: document.getElementById("clearHistoryBtn")
+    };
+
+    function clone(obj) {
+      return JSON.parse(JSON.stringify(obj));
+    }
+
+    function loadGame() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+        if (!saved) return clone(defaultState);
+
+        return {
+          ...clone(defaultState),
+          ...saved,
+          weights: {
+            ...clone(defaultState.weights),
+            ...(saved.weights || {})
+          },
+          history: Array.isArray(saved.history) ? saved.history.slice(0, 25) : []
+        };
+      } catch {
+        return clone(defaultState);
+      }
+    }
+
+    function saveGame(showMessage = false) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      if (showMessage) setMessage("Game saved in this browser. 💾", "win");
+    }
+
+    function autoSave() {
+      if (state.autosave) saveGame(false);
+    }
+
+    function formatMoney(num) {
+      return "$" + Math.floor(Number(num) || 0).toLocaleString();
+    }
+
+    function plural(amount, word) {
+      return `${amount.toLocaleString()} ${word}${amount === 1 ? "" : "s"}`;
+    }
+
+    function clampMode(value) {
+      const mode = Math.floor(Number(value));
+      if (!Number.isFinite(mode) || mode < 1) return 1;
+      return mode;
+    }
+
+    function iconLabel(count) {
+      return `${count} icon${count === 1 ? "" : "s"}`;
+    }
+
+    function symbols() {
+      return Object.keys(state.weights);
+    }
+
+    function totalWeight() {
+      return symbols().reduce((sum, symbol) => sum + Math.max(0, Number(state.weights[symbol]) || 0), 0);
+    }
+
+    function weightedRandomSymbol() {
+      const total = totalWeight();
+      if (total <= 0) {
+        state.weights = clone(defaultState.weights);
+        return weightedRandomSymbol();
+      }
+
+      let random = Math.random() * total;
+      for (const symbol of symbols()) {
+        random -= Math.max(0, Number(state.weights[symbol]) || 0);
+        if (random <= 0) return symbol;
+      }
+      return symbols()[0];
+    }
+
+    function calculateChances() {
+      const total = totalWeight();
+      const mode = Number(state.mode);
+      const chances = {};
+
+      symbols().forEach(symbol => {
+        const p = total > 0 ? Math.max(0, Number(state.weights[symbol]) || 0) / total : 0;
+        chances[symbol] = {
+          single: p,
+          allMatch: Math.pow(p, mode)
+        };
+      });
+
+      const anyAllMatch = symbols().reduce((sum, symbol) => sum + chances[symbol].allMatch, 0);
+      const jackpot = chances["7️⃣"] ? chances["7️⃣"].allMatch : 0;
+
+      return { chances, anyAllMatch, jackpot };
+    }
+
+    function expectedReturnPercent() {
+      const mode = Number(state.mode);
+      const { chances } = calculateChances();
+      let expectedMultiplier = 0;
+
+      symbols().forEach(symbol => {
+        expectedMultiplier += chances[symbol].allMatch * getMultiplier(symbol, mode);
+      });
+
+      return expectedMultiplier * 100;
+    }
+
+    function percent(num) {
+      if (num <= 0) return "0%";
+      if (num < 0.000001) return (num * 100).toExponential(2) + "%";
+      if (num < 0.0001) return (num * 100).toFixed(6) + "%";
+      if (num < 0.01) return (num * 100).toFixed(4) + "%";
+      return (num * 100).toFixed(2) + "%";
+    }
+
+    function getMultiplier(symbol, mode) {
+      const base = payouts[symbol] || 0;
+      mode = clampMode(mode);
+
+      // Keep the original 3/6/9 mode payouts, then scale custom modes sensibly.
+      if (mode === 3) return base;
+      if (mode === 6) return Math.round(base * 4.5);
+      if (mode === 9) return Math.round(base * 18);
+
+      // 1-icon mode always matches and 2-icon mode is easier, so payouts are lower.
+      if (mode < 3) return Math.max(1, Math.round(base * (mode / 3)));
+
+      // Custom modes above 3 become harder, so payouts increase as icon count rises.
+      const extraIcons = mode - 3;
+      const scale = 1 - (0.5 * extraIcons) + ((5 / 9) * extraIcons * extraIcons);
+      return Math.max(base, Math.round(base * scale));
+    }
+
+    function getResult(reelSymbols) {
+      const first = reelSymbols[0];
+      const allSame = reelSymbols.every(symbol => symbol === first);
+
+      if (allSame) {
+        const multiplier = getMultiplier(first, reelSymbols.length);
+        return {
+          won: true,
+          type: first === "7️⃣" ? "JACKPOT 777" : "All Match",
+          symbol: first,
+          multiplier,
+          payout: state.bet * multiplier
+        };
+      }
+
+      if (reelSymbols.length >= 6) {
+        const counts = reelSymbols.reduce((acc, symbol) => {
+          acc[symbol] = (acc[symbol] || 0) + 1;
+          return acc;
+        }, {});
+
+        const best = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
+        const bestSymbol = best[0];
+        const bestCount = best[1];
+
+        if (bestCount >= Math.ceil(reelSymbols.length * 0.66)) {
+          const multiplier = Math.max(2, Math.floor((payouts[bestSymbol] || 2) * bestCount / reelSymbols.length));
+          return {
+            won: true,
+            type: `${bestCount} of ${reelSymbols.length} match`,
+            symbol: bestSymbol,
+            multiplier,
+            payout: state.bet * multiplier
+          };
+        }
+      }
+
+      return {
+        won: false,
+        type: "No win",
+        symbol: "",
+        multiplier: 0,
+        payout: 0
+      };
+    }
+
+    function renderReels(values = null) {
+      state.mode = clampMode(state.mode);
+      els.reels.className = `reels mode-${state.mode}`;
+      els.reels.innerHTML = "";
+
+      const columns = state.mode <= 3 ? state.mode : state.mode <= 9 ? 3 : Math.min(6, state.mode);
+      els.reels.style.gridTemplateColumns = `repeat(${columns}, minmax(0, 1fr))`;
+      els.reels.style.setProperty(
+        "--reel-font-size",
+        state.mode <= 3
+          ? "clamp(1.75rem, 8vw, 4.1rem)"
+          : state.mode <= 9
+            ? "clamp(1.45rem, 6vw, 3.4rem)"
+            : "clamp(1rem, 4vw, 2.4rem)"
+      );
+
+      const reelValues = values || Array.from({ length: state.mode }, () => "❔");
+      reelValues.forEach(value => {
+        const div = document.createElement("div");
+        div.className = "reel";
+        div.textContent = value;
+        els.reels.appendChild(div);
+      });
+    }
+
+    function animateReels(finalSymbols) {
+      const reelNodes = Array.from(document.querySelectorAll(".reel"));
+
+      reelNodes.forEach((reel, index) => {
+        reel.classList.add("spin");
+        let flips = 0;
+        const interval = setInterval(() => {
+          reel.textContent = weightedRandomSymbol();
+          flips++;
+          if (flips > 8 + index * 2) {
+            clearInterval(interval);
+            reel.textContent = finalSymbols[index];
+            reel.classList.remove("spin");
+          }
+        }, 45);
+      });
+    }
+
+    function spin(showAnimation = true) {
+      syncInputs();
+
+      if (state.bet <= 0) {
+        setMessage("Bet must be at least $1.", "lose");
+        return false;
+      }
+
+      if (!state.infiniteSpins && state.spinCredits <= 0) {
+        setMessage(`No spin credits left. Buy spins first for ${formatMoney(SPIN_PRICE)} each, or turn on infinite spins.`, "lose");
+        return false;
+      }
+
+      if (!state.infiniteMoney && state.money < state.bet) {
+        setMessage("Not enough money for this bet. Use a smaller bet, edit your money, or toggle infinite money. 😅", "lose");
+        return false;
+      }
+
+      const resultSymbols = Array.from({ length: state.mode }, () => weightedRandomSymbol());
+      const result = getResult(resultSymbols);
+
+      if (!state.infiniteSpins) {
+        state.spinCredits -= 1;
+      }
+
+      if (!state.infiniteMoney) {
+        state.money -= state.bet;
+      }
+
+      state.spins += 1;
+
+      if (result.won) {
+        state.money += result.payout;
+        state.wins += 1;
+        setMessage(`🎉 ${result.type}! ${resultSymbols.join(" ")} pays ${result.multiplier}x. You won ${formatMoney(result.payout)}.`, "win");
+      } else {
+        state.losses += 1;
+        setMessage(`😢 ${resultSymbols.join(" ")} No match. You lost ${formatMoney(state.bet)}.`, "lose");
+      }
+
+      addHistory(resultSymbols, result);
+      if (showAnimation) animateReels(resultSymbols);
+      else renderReels(resultSymbols);
+      updateUI();
+      autoSave();
+      return true;
+    }
+
+    function spinMany(times) {
+      let completed = 0;
+      for (let i = 0; i < times; i++) {
+        if (!spin(false)) break;
+        completed++;
+      }
+
+      if (completed > 0 && completed < times) {
+        setMessage(`Spun ${completed} time${completed === 1 ? "" : "s"}. Buy more spin credits to keep going.`, "lose");
+        updateUI();
+      }
+    }
+
+    function buySpins() {
+      const amount = Math.max(1, Math.floor(Number(els.buySpinsInput.value) || 1));
+      const cost = amount * SPIN_PRICE;
+      els.buySpinsInput.value = amount;
+
+      if (!state.infiniteMoney && state.money < cost) {
+        setMessage(`Not enough money to buy ${plural(amount, "spin credit")}. You need ${formatMoney(cost)}.`, "lose");
+        return;
+      }
+
+      if (!state.infiniteMoney) {
+        state.money -= cost;
+      }
+
+      state.spinCredits += amount;
+      updateUI();
+      autoSave();
+      setMessage(`Bought ${plural(amount, "spin credit")} for ${state.infiniteMoney ? "free because infinite money is ON" : formatMoney(cost)}.`, "win");
+    }
+
+    function addHistory(resultSymbols, result) {
+      const item = {
+        symbols: resultSymbols.join(" "),
+        result: result.type,
+        bet: state.bet,
+        payout: result.payout,
+        won: result.won,
+        money: state.money,
+        time: new Date().toLocaleTimeString()
+      };
+
+      state.history.unshift(item);
+      state.history = state.history.slice(0, 25);
+    }
+
+    function setMessage(text, type = "") {
+      els.message.textContent = text;
+      els.message.className = "message" + (type ? " " + type : "");
+    }
+
+    function syncInputs() {
+      const bet = Math.floor(Number(els.betInput.value));
+      state.bet = Number.isFinite(bet) && bet > 0 ? bet : 1;
+      els.betInput.value = state.bet;
+
+      state.mode = clampMode(els.modeInput.value);
+      els.modeInput.value = state.mode;
+      state.autosave = els.autosave.value === "on";
+    }
+
+    function renderPaytable() {
+      els.paytableBody.innerHTML = "";
+
+      symbols().forEach(symbol => {
+        const tr = document.createElement("tr");
+        const result = symbol === "7️⃣" ? `${symbol} × ${state.mode} Jackpot` : `${symbol} × ${state.mode}`;
+        const payout = `${getMultiplier(symbol, state.mode)}x bet`;
+        tr.innerHTML = `<td>${result}</td><td>${payout}</td>`;
+        els.paytableBody.appendChild(tr);
+      });
+
+      const partial = document.createElement("tr");
+      partial.innerHTML = `<td>Large custom modes partial match</td><td>About 2x+ bet when 66%+ match</td>`;
+      els.paytableBody.appendChild(partial);
+    }
+
+    function renderOddsEditor() {
+      els.oddsEditor.innerHTML = "";
+
+      symbols().forEach(symbol => {
+        const row = document.createElement("div");
+        row.className = "odds-row";
+
+        const icon = document.createElement("div");
+        icon.className = "pill";
+        icon.textContent = symbol;
+
+        const range = document.createElement("input");
+        range.type = "range";
+        range.min = "0";
+        range.max = "100";
+        range.step = "1";
+        range.value = state.weights[symbol];
+        range.dataset.symbol = symbol;
+
+        const number = document.createElement("input");
+        number.type = "number";
+        number.min = "0";
+        number.max = "100";
+        number.step = "1";
+        number.value = state.weights[symbol];
+        number.dataset.symbol = symbol;
+
+        range.addEventListener("input", () => {
+          number.value = range.value;
+        });
+
+        number.addEventListener("input", () => {
+          range.value = number.value;
+        });
+
+        row.append(icon, range, number);
+        els.oddsEditor.appendChild(row);
+      });
+    }
+
+    function applyOdds() {
+      const inputs = els.oddsEditor.querySelectorAll("input[type='number']");
+      inputs.forEach(input => {
+        state.weights[input.dataset.symbol] = Math.max(0, Math.floor(Number(input.value) || 0));
+      });
+
+      if (totalWeight() <= 0) {
+        state.weights = clone(defaultState.weights);
+        setMessage("All chances were zero, so default chances were restored.", "lose");
+      } else {
+        setMessage("Chances updated. 🎛️", "win");
+      }
+
+      renderOddsEditor();
+      updateUI();
+      autoSave();
+    }
+
+    function renderChanceSummary() {
+      const { chances, anyAllMatch, jackpot } = calculateChances();
+      const rows = symbols().map(symbol => {
+        return `${symbol} appears per reel: ${percent(chances[symbol].single)} · all ${state.mode} match: ${percent(chances[symbol].allMatch)}`;
+      });
+
+      els.chanceSummary.innerHTML = `
+        <div><strong>Any all-match win:</strong> ${percent(anyAllMatch)}</div>
+        <div><strong>777 jackpot chance:</strong> ${percent(jackpot)}</div>
+        <div><strong>Theoretical return:</strong> ${expectedReturnPercent().toFixed(2)}%</div>
+        <br>
+        ${rows.map(row => `<div>${row}</div>`).join("")}
+      `;
+    }
+
+    function renderHistory() {
+      if (!state.history.length) {
+        els.history.innerHTML = `<div class="history-item small">No spins yet.</div>`;
+        return;
+      }
+
+      els.history.innerHTML = state.history.map(item => {
+        const resultClass = item.won ? "win-text" : "lose-text";
+        const payoutText = item.won ? `Won ${formatMoney(item.payout)}` : `Lost ${formatMoney(item.bet)}`;
+        return `
+          <div class="history-item">
+            <div>${item.symbols}</div>
+            <div class="${resultClass}">${item.result} · ${payoutText}</div>
+            <div class="small">${item.time} · Balance ${formatMoney(item.money)}</div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function updateUI() {
+      els.money.textContent = state.infiniteMoney ? "∞ / " + formatMoney(state.money) : formatMoney(state.money);
+      els.betDisplay.textContent = formatMoney(state.bet);
+      els.modeDisplay.textContent = iconLabel(state.mode);
+      els.spinCredits.textContent = state.infiniteSpins ? "∞ / " + state.spinCredits.toLocaleString() : state.spinCredits.toLocaleString();
+      els.spins.textContent = state.spins.toLocaleString();
+      els.betInput.value = state.bet;
+      els.modeInput.value = state.mode;
+      els.modePreset.value = ["1", "2", "3", "6", "9"].includes(String(state.mode)) ? String(state.mode) : "custom";
+      els.autosave.value = state.autosave ? "on" : "off";
+      els.moneyInput.value = Math.floor(state.money);
+      els.spinCreditsInput.value = Math.floor(state.spinCredits);
+      els.buySpinsBtn.textContent = `Buy Spins (${formatMoney(SPIN_PRICE)} each)`;
+      els.spinShopHint.textContent = `Each spin credit costs ${formatMoney(SPIN_PRICE)} fake money. One spin uses one spin credit.`;
+      els.cheatStatus.innerHTML = `Infinite money: ${state.infiniteMoney ? "ON ✅" : "OFF"}<br>Infinite spins: ${state.infiniteSpins ? "ON ✅" : "OFF"}`;
+      renderPaytable();
+      renderChanceSummary();
+      renderHistory();
+    }
+
+    function resetGame() {
+      const confirmed = confirm("Reset money, spin credits, total spins, history, cheats, and chances?");
+      if (!confirmed) return;
+
+      state = clone(defaultState);
+      localStorage.removeItem(STORAGE_KEY);
+      renderReels();
+      renderOddsEditor();
+      updateUI();
+      setMessage("Game reset. Fresh fake money loaded. 🔄", "win");
+    }
+
+    els.buySpinsBtn.addEventListener("click", buySpins);
+    els.spinBtn.addEventListener("click", () => spin(true));
+    els.spin10Btn.addEventListener("click", () => spinMany(10));
+
+    els.saveBtn.addEventListener("click", () => {
+      syncInputs();
+      saveGame(true);
+      updateUI();
+    });
+
+    els.resetBtn.addEventListener("click", resetGame);
+
+    els.infiniteMoneyBtn.addEventListener("click", () => {
+      state.infiniteMoney = !state.infiniteMoney;
+      updateUI();
+      autoSave();
+      setMessage(`Infinite money turned ${state.infiniteMoney ? "ON" : "OFF"}.`, state.infiniteMoney ? "win" : "");
+    });
+
+    els.setMoneyBtn.addEventListener("click", () => {
+      const newMoney = Math.max(0, Math.floor(Number(els.moneyInput.value) || 0));
+      state.money = newMoney;
+      updateUI();
+      autoSave();
+      setMessage(`Money set to ${formatMoney(state.money)}.`, "win");
+    });
+
+    els.addMoneyBtn.addEventListener("click", () => {
+      state.money += 1000;
+      updateUI();
+      autoSave();
+      setMessage("Added $1,000 fake money.", "win");
+    });
+
+    els.infiniteSpinsBtn.addEventListener("click", () => {
+      state.infiniteSpins = !state.infiniteSpins;
+      updateUI();
+      autoSave();
+      setMessage(`Infinite spins turned ${state.infiniteSpins ? "ON" : "OFF"}.`, state.infiniteSpins ? "win" : "");
+    });
+
+    els.setSpinCreditsBtn.addEventListener("click", () => {
+      const newSpinCredits = Math.max(0, Math.floor(Number(els.spinCreditsInput.value) || 0));
+      state.spinCredits = newSpinCredits;
+      updateUI();
+      autoSave();
+      setMessage(`Spin credits set to ${state.spinCredits.toLocaleString()}.`, "win");
+    });
+
+    els.addSpinCreditsBtn.addEventListener("click", () => {
+      state.spinCredits += 100;
+      updateUI();
+      autoSave();
+      setMessage("Added 100 spin credits.", "win");
+    });
+
+    function setIconMode(value, showMessage = true) {
+      state.mode = clampMode(value);
+      els.modeInput.value = state.mode;
+      renderReels();
+      updateUI();
+      autoSave();
+      if (showMessage) setMessage(`Mode set to ${iconLabel(state.mode)}.`, "win");
+    }
+
+    els.modePreset.addEventListener("change", () => {
+      if (els.modePreset.value === "custom") {
+        els.modeInput.focus();
+        return;
+      }
+      setIconMode(els.modePreset.value);
+    });
+
+    els.setModeBtn.addEventListener("click", () => {
+      setIconMode(els.modeInput.value);
+    });
+
+    els.modeInput.addEventListener("change", () => {
+      setIconMode(els.modeInput.value, false);
+    });
+
+    els.betInput.addEventListener("input", () => {
+      syncInputs();
+      updateUI();
+      autoSave();
+    });
+
+    els.quickBet.addEventListener("change", () => {
+      if (!els.quickBet.value) return;
+      els.betInput.value = els.quickBet.value;
+      syncInputs();
+      updateUI();
+      autoSave();
+      els.quickBet.value = "";
+    });
+
+    els.autosave.addEventListener("change", () => {
+      syncInputs();
+      updateUI();
+      autoSave();
+    });
+
+    els.applyOddsBtn.addEventListener("click", applyOdds);
+
+    els.defaultOddsBtn.addEventListener("click", () => {
+      state.weights = clone(defaultState.weights);
+      renderOddsEditor();
+      updateUI();
+      autoSave();
+      setMessage("Default chances restored.", "win");
+    });
+
+    els.clearHistoryBtn.addEventListener("click", () => {
+      state.history = [];
+      renderHistory();
+      autoSave();
+    });
+
+    document.addEventListener("keydown", event => {
+      if (event.code === "Space" && !["INPUT", "SELECT", "TEXTAREA", "BUTTON"].includes(document.activeElement.tagName)) {
+        event.preventDefault();
+        spin(true);
+      }
+    });
+
+    renderReels();
+    renderOddsEditor();
+    updateUI();
+  </script>
+</body>
+</html>
